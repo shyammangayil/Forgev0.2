@@ -1,0 +1,27 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+*.db
+*.db-shm
+*.db-wal
+logs/
+workspace/
+TASKS/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Forge Thunderbird — auto-generated, runtime files
+llama_swap_config.yaml
+litellm_config.yaml
+.forge_stack_pids.json
+forge_llama-swap.log
+forge_llama-server.log
+forge_litellm.log

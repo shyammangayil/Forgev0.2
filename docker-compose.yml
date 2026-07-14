@@ -1,0 +1,102 @@
+version: "3.9"
+
+# FORGE Full Stack
+# Includes: FORGE API + PostgreSQL + Redis + Prometheus + Grafana
+#
+# Usage:
+#   cp .env.example .env && nano .env   # add API keys
+#   docker-compose up
+
+services:
+  forge:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - DATABASE_URL=postgresql://forge:${POSTGRES_PASSWORD:-forge}@postgres:5432/forge
+      - REDIS_URL=redis://redis:6379
+      - OTLP_ENDPOINT=http://otel-collector:4317
+      - FORGE_CODING_PROVIDER=${FORGE_CODING_PROVIDER:-anthropic}
+      - FORGE_REVIEW_PROVIDER=${FORGE_REVIEW_PROVIDER:-openai}
+      - FORGE_FALLBACK_CHAIN=${FORGE_FALLBACK_CHAIN:-anthropic,openai,gemini,ollama}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=json
+    volumes:
+      - forge_tasks:/home/forge/app/TASKS
+      - forge_logs:/home/forge/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/status')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: forge
+      POSTGRES_USER: forge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forge}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-forge}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+  forge_tasks:
+  forge_logs:

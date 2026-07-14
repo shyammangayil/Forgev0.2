@@ -1,0 +1,26 @@
+version: "3.9"
+
+# FORGE Minimal Stack — SQLite only, no external services
+# Requires only one API key
+#
+# Usage:
+#   ANTHROPIC_API_KEY=sk-ant-... docker-compose -f docker-compose.minimal.yml up
+
+services:
+  forge:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - DATABASE_URL=sqlite:////home/forge/app/data/forge_tasks.db
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - forge_data:/home/forge/app/data
+      - forge_tasks:/home/forge/app/TASKS
+
+volumes:
+  forge_data:
+  forge_tasks:
